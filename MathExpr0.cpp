@@ -19,13 +19,18 @@ void Push(char o, char V[], double v) {
 	top = baru;
 }
 
-void Pop(char &o, char V[], double &v) {
+bool Pop(char &o, char V[], double &v) {
+	if (top == NULL) {
+		fprintf(stderr, "Error: pop from empty stack (unbalanced expression)\n");
+		return false;
+	}
 	o = top->oprt;
 	strcpy(V, top->variable);
 	v = top->value;
 	hapus = top;
 	top = top->Next;
 	delete hapus;
+	return true;
 }
 
 void insertInfix(char o, char V[], double v) {
@@ -37,7 +42,7 @@ void insertInfix(char o, char V[], double v) {
 	if (hInfix) {
 		tInfix->Next = baru;
 		tInfix = baru;
-	} else hInfix = tInfix = baru; 
+	} else hInfix = tInfix = baru;
 }
 
 void insertPostfix(char o, char V[], double v) {
@@ -45,17 +50,17 @@ void insertPostfix(char o, char V[], double v) {
 	baru->oprt = o;
 	strcpy(baru->variable, V);
 	baru->value = v;
-	baru->Next = NULL; 
+	baru->Next = NULL;
 	if (hPostfix) {
 		tPostfix->Next = baru;
 		tPostfix = baru;
-	} else hPostfix = tPostfix = baru; 
+	} else hPostfix = tPostfix = baru;
 }
 
 //dengan kesepakatan sendiri
 void printNotation(struct Token *head) {
-	for(bantu = head; bantu; bantu = bantu = bantu->Next) { 
-		switch(bantu->oprt) {            
+	for (bantu = head; bantu; bantu = bantu->Next) {
+		switch (bantu->oprt) {
 			case 'V': printf("%s ", bantu->variable); break;
 			case 'v': printf("%0.3f ", bantu->value); break;
 			default : printf("%c ", bantu->oprt);
@@ -69,9 +74,9 @@ bool isNumeric(char c) {
 }
 
 bool isOprt(char c) {
-	return c == '+' || c == '-' || 
-	       c == '*' || c == '/' || 
-		   c == '^' || c == '(' || c == ')';
+	return c == '+' || c == '-' ||
+	       c == '*' || c == '/' ||
+	       c == '^' || c == '(' || c == ')';
 }
 
 bool isUpper(char c) {
@@ -82,19 +87,27 @@ bool isLower(char c) {
 	return (c >= 'a' && c <= 'z');
 }
 
+// Frees an entire linked list, not just the second node.
 void freeNotation(struct Token *head) {
-	hapus = head;
-	head = head->Next;
-	delete head;
+	while (head) {
+		hapus = head;
+		head = head->Next;
+		delete hapus;
+	}
 }
 
 unsigned char priority(char o) {
-	switch(o) {
-		case '^'     : return 3;
-		case '*': case '/': return 2;
-		case '+': case '-': return 1;
-		default      : return 0;
+	switch (o) {
+		case '^'            : return 3;
+		case '*': case '/'  : return 2;
+		case '+': case '-'  : return 1;
+		default             : return 0;
 	}
+}
+
+// '^' is right-associative; '*','/','+','-' are left-associative.
+bool isRightAssociative(char o) {
+	return o == '^';
 }
 
 int main() {
@@ -103,121 +116,154 @@ int main() {
 	bool canLoop;
 	double oprnd1, oprnd2, hasil;
 	hInfix = tInfix = hPostfix = tPostfix = NULL;
+	top = NULL;
 	l = strlen(mathExpr);
-	
+
 	/*printf("Masukkan notasi ekspresi matematikanya: ");
-	scanf("%[^\n]", mathExpr);
-	fflush(stdin);*/
-		j = 0;
-	for(i = 0; i < l; i++) {
+	scanf("%255[^\n]", mathExpr);*/
+
+	j = 0;
+	for (i = 0; i < l; i++) {
 		me = mathExpr[i];
-		if(isNumeric(me) || isLower(me) || isUpper(me) || (me == '.') || (me == '_')) {
-			sOprnd[j] = me;
-			j++;
-		} else if(isOprt(me) || (me == '(') || (me == ')')) {
-			if(j > 0) {
+		if (isNumeric(me) || isLower(me) || isUpper(me) || (me == '_')) {
+			if (j < (int)sizeof(sOprnd) - 1) {
+				sOprnd[j] = me;
+				j++;
+			} else {
+				fprintf(stderr, "Error: operand/variable name too long (max 32 chars)\n");
+				return 1;
+			}
+		} else if (isOprt(me)) {
+			if (j > 0) {
 				sOprnd[j] = 0;
-				//printf("%s\n", sOprnd);
-				if(sOprnd[0] >= '0' && sOprnd[0] <= '9') {
-					insertInfix('v', "", atof(sOprnd));
+				if (sOprnd[0] >= '0' && sOprnd[0] <= '9') {
+					insertInfix('v', (char*)"", atof(sOprnd));
 				} else {
 					insertInfix('V', sOprnd, 0);
 				}
 				j = 0;
 			}
-			//printf("%c\n", me);
-			insertInfix(me, "", 0);
+			insertInfix(me, (char*)"", 0);
+		} else if (me == ' ' || me == '\t') {
+			// ignore whitespace
 		} else {
-			//error
+			fprintf(stderr, "Error: unexpected character '%c' in expression\n", me);
+			return 1;
 		}
 	}
-	
-	if(j > 0) {
+
+	if (j > 0) {
 		sOprnd[j] = 0;
-		//printf("%s\n", sOprnd);
-		if(sOprnd[0] >= '0' && sOprnd[0] <= '9') {
-			insertInfix('v', "", atof(sOprnd));
+		if (sOprnd[0] >= '0' && sOprnd[0] <= '9') {
+			insertInfix('v', (char*)"", atof(sOprnd));
 		} else {
 			insertInfix('V', sOprnd, 0);
 		}
 		j = 0;
 	}
-			
+
 	printf("Infix: ");
 	printNotation(hInfix);
-	
-	for(bantu = hInfix; bantu; bantu = bantu->Next) {
-		if(bantu->oprt == 'V') {
+
+	for (bantu = hInfix; bantu; bantu = bantu->Next) {
+		if (bantu->oprt == 'V') {
 			printf("Masukkan nilai %s: ", bantu->variable);
-			scanf("%Lf", &bantu->value);
+			fflush(stdout);
+			if (scanf("%lf", &bantu->value) != 1) {
+				fprintf(stderr, "Error: invalid numeric input for %s\n", bantu->variable);
+				return 1;
+			}
 			insertPostfix(bantu->oprt, bantu->variable, bantu->value);
-		} else if(bantu->oprt == 'v') {
+		} else if (bantu->oprt == 'v') {
 			insertPostfix(bantu->oprt, bantu->variable, bantu->value);
-		} else if(top == NULL) {
+		} else if (top == NULL) {
 			Push(bantu->oprt, bantu->variable, bantu->value);
-		} else if(bantu->oprt == '(') {
+		} else if (bantu->oprt == '(') {
 			Push(bantu->oprt, bantu->variable, bantu->value);
-		} else if(top->oprt == '(') {
+		} else if (top->oprt == '(') {
 			Push(bantu->oprt, bantu->variable, bantu->value);
-		} else if(bantu->oprt == ')') {
-			while(top->oprt != '(') {
-				Pop(me, sOprnd, hasil);
+		} else if (bantu->oprt == ')') {
+			bool foundOpen = false;
+			while (top != NULL && top->oprt != '(') {
+				if (!Pop(me, sOprnd, hasil)) return 1;
 				insertPostfix(me, sOprnd, hasil);
 			}
-			Pop(me, sOprnd, hasil);
-		} else if(priority(bantu->oprt) > priority(top->oprt)) {
-			Push(bantu->oprt, bantu->variable, bantu->value);
+			if (top == NULL) {
+				fprintf(stderr, "Error: unmatched ')' in expression\n");
+				return 1;
+			}
+			foundOpen = true;
+			(void)foundOpen;
+			Pop(me, sOprnd, hasil); // discard the '('
 		} else {
-			if(top == NULL) {
-				canLoop = false;
+			// Decide whether to push or pop-then-push based on priority/associativity
+			if (isRightAssociative(bantu->oprt)) {
+				canLoop = (top != NULL) && (priority(bantu->oprt) < priority(top->oprt));
 			} else {
-				canLoop = priority(bantu->oprt) <= priority(top->oprt);
+				canLoop = (top != NULL) && (priority(bantu->oprt) <= priority(top->oprt));
 			}
 			while (canLoop) {
-				Pop(me, sOprnd, hasil);
+				if (!Pop(me, sOprnd, hasil)) return 1;
 				insertPostfix(me, sOprnd, hasil);
-				//recheck
-				if(top == NULL) {
-					canLoop = false;
+				if (isRightAssociative(bantu->oprt)) {
+					canLoop = (top != NULL) && (priority(bantu->oprt) < priority(top->oprt));
 				} else {
-					canLoop = priority(bantu->oprt) <= priority(top->oprt);
+					canLoop = (top != NULL) && (priority(bantu->oprt) <= priority(top->oprt));
 				}
 			}
 			Push(bantu->oprt, bantu->variable, bantu->value);
 		}
 	}
-	
-	while(top) {
-		Pop(me, sOprnd, hasil);
+
+	while (top) {
+		if (!Pop(me, sOprnd, hasil)) return 1;
+		if (me == '(') {
+			fprintf(stderr, "Error: unmatched '(' in expression\n");
+			return 1;
+		}
 		insertPostfix(me, sOprnd, hasil);
 	}
-	
-	
-	
-	for(bantu = hPostfix; bantu; bantu = bantu->Next) {
-		if(bantu->oprt == 'v' || bantu->oprt == 'V') {
+
+	for (bantu = hPostfix; bantu; bantu = bantu->Next) {
+		if (bantu->oprt == 'v' || bantu->oprt == 'V') {
 			Push(bantu->oprt, bantu->variable, bantu->value);
 		} else {
-			Pop(me, sOprnd, oprnd2);
-			Pop(me, sOprnd, oprnd1);
-			
-			switch(bantu->oprt) {
+			if (!Pop(me, sOprnd, oprnd2)) return 1;
+			if (!Pop(me, sOprnd, oprnd1)) return 1;
+
+			switch (bantu->oprt) {
 				case '^': hasil = pow(oprnd1, oprnd2); break;
 				case '*': hasil = oprnd1 * oprnd2; break;
-				case '/': hasil = oprnd1 / oprnd2; break;
+				case '/':
+					if (oprnd2 == 0.0) {
+						fprintf(stderr, "Error: division by zero\n");
+						return 1;
+					}
+					hasil = oprnd1 / oprnd2;
+					break;
 				case '+': hasil = oprnd1 + oprnd2; break;
 				case '-': hasil = oprnd1 - oprnd2; break;
+				default:
+					fprintf(stderr, "Error: unknown operator '%c'\n", bantu->oprt);
+					return 1;
 			}
-			Push('v', "", hasil);
+			Push('v', (char*)"", hasil);
 		}
 	}
-	
+
 	printf("Postfix: ");
 	printNotation(hPostfix);
-	
-	Pop(me, sOprnd, hasil);
-	printf("Hasil: %0.3f", hasil);
+
+	if (!Pop(me, sOprnd, hasil)) return 1;
+	printf("Hasil: %0.3f\n", hasil);
+
+	// Clean up all allocated memory
+	freeNotation(hInfix);
 	freeNotation(hPostfix);
-			
+	while (top) {
+		double dummy;
+		Pop(me, sOprnd, dummy);
+	}
+
 	return 0;
 }
