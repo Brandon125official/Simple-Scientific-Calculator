@@ -10,7 +10,7 @@ struct Token {
 } *hInfix, *tInfix, *hPostfix, *tPostfix, *baru, *bantu, *hapus, *top;
 
 //queue function
-void Push(char o, char V[], double v) {
+void Push(char o, const char V[], double v) {
 	baru = new Token;
 	baru->oprt = o;
 	strcpy(baru->variable, V);
@@ -33,7 +33,7 @@ bool Pop(char &o, char V[], double &v) {
 	return true;
 }
 
-void insertInfix(char o, char V[], double v) {
+void insertInfix(char o, const char V[], double v) {
 	baru = new Token;
 	baru->oprt = o;
 	strcpy(baru->variable, V);
@@ -45,7 +45,7 @@ void insertInfix(char o, char V[], double v) {
 	} else hInfix = tInfix = baru;
 }
 
-void insertPostfix(char o, char V[], double v) {
+void insertPostfix(char o, const char V[], double v) {
 	baru = new Token;
 	baru->oprt = o;
 	strcpy(baru->variable, V);
@@ -137,13 +137,13 @@ int main() {
 			if (j > 0) {
 				sOprnd[j] = 0;
 				if (sOprnd[0] >= '0' && sOprnd[0] <= '9') {
-					insertInfix('v', (char*)"", atof(sOprnd));
+					insertInfix('v', "", atof(sOprnd));
 				} else {
 					insertInfix('V', sOprnd, 0);
 				}
 				j = 0;
 			}
-			insertInfix(me, (char*)"", 0);
+			insertInfix(me, "", 0);
 		} else if (me == ' ' || me == '\t') {
 			// ignore whitespace
 		} else {
@@ -155,7 +155,7 @@ int main() {
 	if (j > 0) {
 		sOprnd[j] = 0;
 		if (sOprnd[0] >= '0' && sOprnd[0] <= '9') {
-			insertInfix('v', (char*)"", atof(sOprnd));
+			insertInfix('v', "", atof(sOprnd));
 		} else {
 			insertInfix('V', sOprnd, 0);
 		}
@@ -176,14 +176,14 @@ int main() {
 			insertPostfix(bantu->oprt, bantu->variable, bantu->value);
 		} else if (bantu->oprt == 'v') {
 			insertPostfix(bantu->oprt, bantu->variable, bantu->value);
-		} else if (top == NULL) {
-			Push(bantu->oprt, bantu->variable, bantu->value);
 		} else if (bantu->oprt == '(') {
-			Push(bantu->oprt, bantu->variable, bantu->value);
-		} else if (top->oprt == '(') {
+			// FIX: '(' must always be pushed outright, checked before
+			// anything that looks at what's on top of the stack.
 			Push(bantu->oprt, bantu->variable, bantu->value);
 		} else if (bantu->oprt == ')') {
-			bool foundOpen = false;
+			// FIX: ')' must be handled before the "top->oprt == '('" case,
+			// otherwise an empty "()" pair pushes ')' instead of popping
+			// the matching '(' off the stack.
 			while (top != NULL && top->oprt != '(') {
 				if (!Pop(me, sOprnd, hasil)) return 1;
 				insertPostfix(me, sOprnd, hasil);
@@ -192,9 +192,11 @@ int main() {
 				fprintf(stderr, "Error: unmatched ')' in expression\n");
 				return 1;
 			}
-			foundOpen = true;
-			(void)foundOpen;
-			Pop(me, sOprnd, hasil); // discard the '('
+			if (!Pop(me, sOprnd, hasil)) return 1; // discard the '('
+		} else if (top == NULL) {
+			Push(bantu->oprt, bantu->variable, bantu->value);
+		} else if (top->oprt == '(') {
+			Push(bantu->oprt, bantu->variable, bantu->value);
 		} else {
 			// Decide whether to push or pop-then-push based on priority/associativity
 			if (isRightAssociative(bantu->oprt)) {
@@ -247,7 +249,7 @@ int main() {
 					fprintf(stderr, "Error: unknown operator '%c'\n", bantu->oprt);
 					return 1;
 			}
-			Push('v', (char*)"", hasil);
+			Push('v', "", hasil);
 		}
 	}
 
