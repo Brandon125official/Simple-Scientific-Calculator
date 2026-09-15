@@ -176,14 +176,9 @@ int main() {
 			insertPostfix(bantu->oprt, bantu->variable, bantu->value);
 		} else if (bantu->oprt == 'v') {
 			insertPostfix(bantu->oprt, bantu->variable, bantu->value);
-		} else if (bantu->oprt == '(') {
-			// FIX: '(' must always be pushed outright, checked before
-			// anything that looks at what's on top of the stack.
+		} else if (bantu->oprt == '(') {.
 			Push(bantu->oprt, bantu->variable, bantu->value);
 		} else if (bantu->oprt == ')') {
-			// FIX: ')' must be handled before the "top->oprt == '('" case,
-			// otherwise an empty "()" pair pushes ')' instead of popping
-			// the matching '(' off the stack.
 			while (top != NULL && top->oprt != '(') {
 				if (!Pop(me, sOprnd, hasil)) return 1;
 				insertPostfix(me, sOprnd, hasil);
